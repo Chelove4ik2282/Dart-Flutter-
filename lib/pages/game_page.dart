@@ -7,7 +7,8 @@ import '../models/player.dart';
 import '../models/game_result.dart';
 import '../widgets/word_card_widget.dart';
 import '../widgets/score_modal.dart';
-import '../services/local_storage_service.dart';  // <-- Импорт сервиса локального хранилища
+import '../services/local_storage_service.dart';
+import 'home_page.dart';
 
 class HomeGamePage extends StatefulWidget {
   final List<Player> players;
@@ -26,7 +27,9 @@ class _GamePageState extends State<HomeGamePage> {
   int currentRound = 1;
   int teamAScore = 0;
   int teamBScore = 0;
-  String currentTeam = 'A';
+
+  int roundTurn = 0; // 0 = A, 1 = B
+
   List<int> roundScoresA = [];
   List<int> roundScoresB = [];
 
@@ -110,13 +113,13 @@ class _GamePageState extends State<HomeGamePage> {
     setState(() {
       if (scoreChange != 0) {
         if (taboo) {
-          if (currentTeam == 'A') {
+          if (roundTurn == 0) {
             teamAScore = (teamAScore - 1).clamp(0, 999);
           } else {
             teamBScore = (teamBScore - 1).clamp(0, 999);
           }
         } else {
-          if (currentTeam == 'A') {
+          if (roundTurn == 0) {
             teamAScore++;
           } else {
             teamBScore++;
@@ -151,21 +154,30 @@ class _GamePageState extends State<HomeGamePage> {
     }
   }
 
-  void _nextRound() {
-    setState(() {
-      // Добавляем очки за раунд
+  void _nextTurnOrRound() {
+    if (roundTurn == 0) {
+      // Сохраняем промежуточные очки после хода Team A
       int lastSumA = roundScoresA.fold(0, (a, b) => a + b);
-      int lastSumB = roundScoresB.fold(0, (a, b) => a + b);
-
       roundScoresA.add(teamAScore - lastSumA);
+      roundTurn = 1;
+    } else {
+      // Сохраняем промежуточные очки после хода Team B
+      int lastSumB = roundScoresB.fold(0, (a, b) => a + b);
       roundScoresB.add(teamBScore - lastSumB);
-
+      roundTurn = 0;
       currentRound++;
-      currentTeam = currentTeam == 'A' ? 'B' : 'A';
-      currentWordIndex = 0;
-      remainingWords = List<Map<String, dynamic>>.from(allWords)..shuffle(Random());
-    });
-    startTimer();
+    }
+
+    if (currentRound > widget.totalRounds) {
+      _saveGameHistory();
+      _showGameOverDialog();
+    } else {
+      setState(() {
+        currentWordIndex = 0;
+        remainingWords = List<Map<String, dynamic>>.from(allWords)..shuffle(Random());
+      });
+      startTimer();
+    }
   }
 
   void _showRoundEndDialog({required String reason}) {
@@ -179,12 +191,7 @@ class _GamePageState extends State<HomeGamePage> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              if (currentRound < widget.totalRounds && remainingWords.isNotEmpty) {
-                _nextRound();
-              } else {
-                _saveGameHistory();
-                _showGameOverDialog();
-              }
+              _nextTurnOrRound();
             },
             child: const Text('Continue'),
           ),
@@ -194,32 +201,38 @@ class _GamePageState extends State<HomeGamePage> {
   }
 
   void _showGameOverDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => ScoreModal(
-        teamAScore: teamAScore,
-        teamBScore: teamBScore,
-        onConfirmed: () {
-          Navigator.pop(context);
-          Navigator.pop(context);
-        },
-      ),
-    );
-  }
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => ScoreModal(
+      teamAScore: teamAScore,
+      teamBScore: teamBScore,
+      onConfirmed: () {
+        Navigator.pop(context); // Закрываем диалог
+
+        // Переход на HomePage и удаление всей предыдущей истории
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+          (route) => false,
+        );
+      },
+    ),
+  );
+}
+
 
   Future<void> _saveGameHistory() async {
-  final gameResult = GameResult(
-  teamAPlayers.map((p) => p.name).join(', '),
-  teamBPlayers.map((p) => p.name).join(', '),
-  teamAScore,
-  teamBScore,
-  DateTime.now().toIso8601String(),
-);
+    final gameResult = GameResult(
+      teamAPlayers.map((p) => p.name).join(', '),
+      teamBPlayers.map((p) => p.name).join(', '),
+      teamAScore,
+      teamBScore,
+      DateTime.now().toIso8601String(),
+    );
 
-
-  await LocalStorageService.instance.insertGame(gameResult);
-}
+    await LocalStorageService.instance.insertGame(gameResult);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +245,7 @@ class _GamePageState extends State<HomeGamePage> {
         child: Column(
           children: [
             Text(
-              'Team $currentTeam\'s turn',
+              'Team ${roundTurn == 0 ? 'A' : 'B'}\'s turn',
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),

@@ -22,13 +22,19 @@ class GameResultAdapter extends TypeAdapter<GameResult> {
       fields[2] as int,
       fields[3] as int,
       fields[4] as String,
+      winner: fields[5] as String?,
+      roundsPlayed: fields[6] as int?,
+      team1Players: (fields[7] as List?)?.cast<String>(),
+      team2Players: (fields[8] as List?)?.cast<String>(),
+      duration: fields[9] as int?,
+      notes: fields[10] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, GameResult obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.team1)
       ..writeByte(1)
@@ -38,7 +44,19 @@ class GameResultAdapter extends TypeAdapter<GameResult> {
       ..writeByte(3)
       ..write(obj.score2)
       ..writeByte(4)
-      ..write(obj.date);
+      ..write(obj.date)
+      ..writeByte(5)
+      ..write(obj.winner)
+      ..writeByte(6)
+      ..write(obj.roundsPlayed)
+      ..writeByte(7)
+      ..write(obj.team1Players)
+      ..writeByte(8)
+      ..write(obj.team2Players)
+      ..writeByte(9)
+      ..write(obj.duration)
+      ..writeByte(10)
+      ..write(obj.notes);
   }
 
   @override

@@ -17,7 +17,37 @@ class GameResult {
   final int score2;
 
   @HiveField(4)
-  final String date; // сохраняем дату в виде строки
+  final String date; // Дата в виде строки (ISO)
 
-  GameResult(this.team1, this.team2, this.score1, this.score2, this.date);
+  @HiveField(5)
+  final String? winner; // Победитель или null при ничьей
+
+  @HiveField(6)
+  final int? roundsPlayed; // Количество раундов
+
+  @HiveField(7)
+  final List<String>? team1Players; // Игроки команды 1
+
+  @HiveField(8)
+  final List<String>? team2Players; // Игроки команды 2
+
+  @HiveField(9)
+  final int? duration; // Продолжительность игры в минутах
+
+  @HiveField(10)
+  final String? notes; // Заметки к игре
+
+  GameResult(
+    this.team1,
+    this.team2,
+    this.score1,
+    this.score2,
+    this.date, {
+    this.winner,
+    this.roundsPlayed,
+    this.team1Players,
+    this.team2Players,
+    this.duration,
+    this.notes,
+  });
 }

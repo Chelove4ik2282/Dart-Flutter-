@@ -14,12 +14,18 @@ class LocalStorageService {
   Future<void> insertGame(GameResult game) async {
     await _box.add(game);
   }
+  Future<void> removeGameAt(int index) async {
+  final box = Hive.box<GameResult>('game_results');
+  await box.deleteAt(index);
+}
+
+Future<void> clearHistory() async {
+  final box = Hive.box<GameResult>('game_results');
+  await box.clear();
+}
+
 
   List<GameResult> getHistory() {
     return _box.values.toList().reversed.toList();
-  }
-
-  Future<void> clearHistory() async {
-    await _box.clear();
-  }
+  } 
 }
