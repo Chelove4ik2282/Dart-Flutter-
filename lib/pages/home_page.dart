@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'setup_page.dart';
+import 'history_page.dart';
 
 class GameButton extends StatelessWidget {
   final String text;
@@ -201,20 +202,19 @@ class HomePage extends StatelessWidget {
                     ),
 
                     // History
-                    GameButton(
-                      text: 'History',
-                      icon: Icons.history_rounded,
-                      color: const Color(0xFFFF9F1C),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('History page coming soon!'),
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: Colors.black87,
-                          ),
-                        );
-                      },
-                    ),
+                    // History
+GameButton(
+  text: 'History',
+  icon: Icons.history_rounded,
+  color: const Color(0xFFFF9F1C),
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const HistoryPage()),
+    );
+  },
+),
+
                   ],
                 ),
               ),

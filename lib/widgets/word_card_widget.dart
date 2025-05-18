@@ -1,55 +1,70 @@
-// lib/widgets/word_card_widget.dart
 import 'package:flutter/material.dart';
 
 class WordCardWidget extends StatelessWidget {
   final String word;
   final List<String> tabooWords;
+  final VoidCallback onCorrect;
+  final VoidCallback onTaboo;
+  final VoidCallback onSkip;
 
   const WordCardWidget({
-    super.key,
+    Key? key,
     required this.word,
     required this.tabooWords,
-  });
+    required this.onCorrect,
+    required this.onTaboo,
+    required this.onSkip,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: Colors.deepPurple[400],
-      margin: const EdgeInsets.symmetric(vertical: 20),
+      elevation: 4,
+      margin: const EdgeInsets.symmetric(vertical: 16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               word,
-              style: const TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: 1.2,
-              ),
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 20),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 12),
+            Text(
+              'Taboo words:',
+              style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
               children: tabooWords
-                  .map(
-                    (word) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Text(
-                        word,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white.withOpacity(0.8),
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                  )
+                  .map((w) => Chip(
+                        label: Text(w),
+                        backgroundColor: Colors.red.shade100,
+                      ))
                   .toList(),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: onCorrect,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                  child: const Text('Correct'),
+                ),
+                ElevatedButton(
+                  onPressed: onTaboo,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: const Text('Taboo'),
+                ),
+                ElevatedButton(
+                  onPressed: onSkip,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+                  child: const Text('Skip'),
+                ),
+              ],
             ),
           ],
         ),

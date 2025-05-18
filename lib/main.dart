@@ -3,10 +3,16 @@ import 'pages/home_page.dart'; // Импортируем только HomePage
 import 'pages/setup_page.dart';
 import 'pages/game_page.dart'; // Убираем префикс
 import 'pages/history_page.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'models/game_result.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const TabooGameApp());
+  await Hive.initFlutter();
+  Hive.registerAdapter(GameResultAdapter());
+  await Hive.openBox<GameResult>('game_history');
+
+  runApp(TabooGameApp());
 }
 
 class TabooGameApp extends StatelessWidget {
@@ -22,7 +28,7 @@ class TabooGameApp extends StatelessWidget {
         '/': (_) => const HomePage(),
         '/setup': (_) => const SetupPage(),
         '/game': (_) => const SetupPage(), // Вызываем SetupPage как дефолтный маршрут для начала
-        '/history': (_) => const HomeHistoryPage(),
+        '/history': (_) => const HistoryPage(),
       },
     );
   }
