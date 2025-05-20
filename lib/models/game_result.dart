@@ -58,4 +58,4 @@ class GameResult {
     this.team1RoundScores,
     this.team2RoundScores,
   });
-}
+} 
