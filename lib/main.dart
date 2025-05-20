@@ -5,15 +5,22 @@ import 'pages/game_page.dart'; // Убираем префикс
 import 'pages/history_page.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'models/game_result.dart';
+import 'services/local_storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Hive.initFlutter();
-  Hive.registerAdapter(GameResultAdapter());
+
+  Hive.registerAdapter(GameResultAdapter()); // Твой адаптер для GameResult
+
   await Hive.openBox<GameResult>('game_history');
+
+  await LocalStorageService.instance.init();
 
   runApp(TabooGameApp());
 }
+
 
 class TabooGameApp extends StatelessWidget {
   const TabooGameApp({super.key});

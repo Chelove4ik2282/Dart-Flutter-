@@ -1,13 +1,10 @@
-import 'dart:async';
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-
 import '../models/player.dart';
 import '../models/game_result.dart';
 import '../widgets/word_card_widget.dart';
 import '../widgets/score_modal.dart';
 import '../services/local_storage_service.dart';
+import '../controllers/game_controller.dart';
 import 'home_page.dart';
 
 class HomeGamePage extends StatefulWidget {
@@ -17,153 +14,89 @@ class HomeGamePage extends StatefulWidget {
   const HomeGamePage({super.key, required this.players, required this.totalRounds});
 
   @override
-  _GamePageState createState() => _GamePageState();
+  State<HomeGamePage> createState() => _HomeGamePageState();
 }
 
-class _GamePageState extends State<HomeGamePage> {
+class _HomeGamePageState extends State<HomeGamePage> {
   late List<Player> teamAPlayers;
   late List<Player> teamBPlayers;
-
   int currentRound = 1;
   int teamAScore = 0;
   int teamBScore = 0;
-
-  int roundTurn = 0; // 0 = A, 1 = B
+  int roundTurn = 0;
 
   List<int> roundScoresA = [];
   List<int> roundScoresB = [];
 
-  static const int roundDuration = 60;
-  int secondsLeft = roundDuration;
-  Timer? timer;
-
-  final List<Map<String, dynamic>> allWords = [
-    {'word': 'Sunflower', 'taboo': ['Flower', 'Yellow', 'Plant', 'Garden', 'Petal']},
-    {'word': 'Apple', 'taboo': ['Fruit', 'Red', 'Tree', 'Pie', 'Sweet']},
-    {'word': 'Car', 'taboo': ['Drive', 'Engine', 'Wheels', 'Road', 'Speed']},
-    {'word': 'Dog', 'taboo': ['Pet', 'Bark', 'Tail', 'Animal', 'Fetch']},
-    {'word': 'Computer', 'taboo': ['Keyboard', 'Mouse', 'Screen', 'Internet', 'Laptop']},
-    {'word': 'Book', 'taboo': ['Read', 'Library', 'Pages', 'Story', 'Cover']},
-    {'word': 'Pizza', 'taboo': ['Cheese', 'Crust', 'Slice', 'Oven', 'Pepperoni']},
-    {'word': 'Chair', 'taboo': ['Sit', 'Legs', 'Seat', 'Backrest', 'Wood']},
-    {'word': 'Ocean', 'taboo': ['Water', 'Waves', 'Sea', 'Beach', 'Fish']},
-    {'word': 'Clock', 'taboo': ['Time', 'Hands', 'Wall', 'Tick', 'Watch']},
-    {'word': 'Phone', 'taboo': ['Call', 'Text', 'Smart', 'Ring', 'Mobile']},
-    {'word': 'Bicycle', 'taboo': ['Pedal', 'Wheels', 'Ride', 'Helmet', 'Handlebar']},
-    {'word': 'Ice Cream', 'taboo': ['Cold', 'Dessert', 'Cone', 'Scoop', 'Sweet']},
-    {'word': 'Movie', 'taboo': ['Cinema', 'Screen', 'Actor', 'Popcorn', 'Watch']},
-    {'word': 'Mountain', 'taboo': ['Climb', 'Peak', 'Tall', 'Hike', 'Rock']},
-    {'word': 'Basketball', 'taboo': ['Sport', 'Hoop', 'Dribble', 'Court', 'NBA']},
-    {'word': 'Camera', 'taboo': ['Photo', 'Lens', 'Shoot', 'Flash', 'Picture']},
-    {'word': 'Pencil', 'taboo': ['Write', 'Eraser', 'Paper', 'Sharp', 'Lead']},
-    {'word': 'Milk', 'taboo': ['Drink', 'Cow', 'White', 'Glass', 'Dairy']},
-    {'word': 'Plane', 'taboo': ['Fly', 'Pilot', 'Airport', 'Wings', 'Sky']},
-    {'word': 'Ghost', 'taboo': ['Scary', 'Haunt', 'Spirit', 'Boo', 'Invisible']},
-    {'word': 'Robot', 'taboo': ['Machine', 'AI', 'Metal', 'Automate', 'Technology']},
-    {'word': 'Music', 'taboo': ['Song', 'Sing', 'Instrument', 'Sound', 'Melody']},
-    {'word': 'Toothbrush', 'taboo': ['Teeth', 'Brush', 'Toothpaste', 'Clean', 'Bathroom']},
-    {'word': 'Train', 'taboo': ['Track', 'Railway', 'Station', 'Locomotive', 'Travel']},
-    {'word': 'Fire', 'taboo': ['Hot', 'Flame', 'Burn', 'Smoke', 'Campfire']},
-    {'word': 'Doctor', 'taboo': ['Hospital', 'Patient', 'Medicine', 'Nurse', 'Sick']},
-    {'word': 'Snow', 'taboo': ['Cold', 'White', 'Winter', 'Ice', 'Flakes']},
-    {'word': 'Balloon', 'taboo': ['Air', 'Helium', 'Float', 'Pop', 'Party']},
-    {'word': 'Map', 'taboo': ['Directions', 'Country', 'Route', 'Navigate', 'Location']},
-  ];
-
-  late List<Map<String, dynamic>> remainingWords;
-  int currentWordIndex = 0;
-
-  Map<String, dynamic> get currentWordMap => remainingWords[currentWordIndex];
-  String get currentWord => currentWordMap['word'];
-  List<String> get tabooWords => List<String>.from(currentWordMap['taboo']);
+  final GameController controller = GameController();
 
   @override
   void initState() {
     super.initState();
     teamAPlayers = widget.players.where((p) => p.team == 'A').toList();
     teamBPlayers = widget.players.where((p) => p.team == 'B').toList();
-    remainingWords = List<Map<String, dynamic>>.from(allWords)..shuffle(Random());
-    startTimer();
+
+    controller.onTick = (seconds) => setState(() {});
+    controller.onTimeUp = () {
+  controller.stopTimer();
+
+  _showDialogWithTitleAndAction(
+    icon: Icons.flag,
+    iconColor: Colors.orange,
+    title: 'Round ${currentRound} Over',
+    content: '⏰ Time is up!\n\nReady for the next team?',
+    buttonText: currentRound >= widget.totalRounds && roundTurn == 1 ? 'Show Results' : 'Next',
+    buttonColor: Colors.indigo,
+    onPressed: _nextTurnOrRound,
+  );
+};
+
+    controller.onWin = () {
+      controller.stopTimer();
+      _saveGameHistory();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showWinDialog();
+      });
+    };
+
+    _showStartRoundDialog();
   }
 
   @override
   void dispose() {
-    timer?.cancel();
+    controller.stopTimer();
     super.dispose();
   }
 
-  void startTimer() {
-    timer?.cancel();
+  void _handleRoundEnd({required bool taboo}) {
     setState(() {
-      secondsLeft = roundDuration;
-    });
-    timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (secondsLeft > 0) {
-        setState(() {
-          secondsLeft--;
-        });
-      } else {
-        t.cancel();
-        _showRoundEndDialog(reason: 'Time is up! The round has ended.');
-      }
-    });
-  }
-
-  void _handleRoundEnd({required int scoreChange, required bool taboo}) {
-    setState(() {
-      if (scoreChange != 0) {
-        if (taboo) {
-          if (roundTurn == 0) {
-            teamAScore = (teamAScore - 1).clamp(0, 999);
-          } else {
-            teamBScore = (teamBScore - 1).clamp(0, 999);
-          }
+      if (taboo) {
+        if (roundTurn == 0) {
+          teamAScore = (teamAScore - 1).clamp(0, 999);
         } else {
-          if (roundTurn == 0) {
-            teamAScore++;
-          } else {
-            teamBScore++;
-          }
+          teamBScore = (teamBScore - 1).clamp(0, 999);
+        }
+      } else {
+        if (roundTurn == 0) {
+          teamAScore++;
+        } else {
+          teamBScore++;
         }
       }
-      remainingWords.removeAt(currentWordIndex);
+      controller.nextWord();
     });
-
-    if (remainingWords.isEmpty) {
-      timer?.cancel();
-      _showRoundEndDialog(reason: 'No more words left! The round has ended.');
-    } else {
-      setState(() {
-        currentWordIndex = 0;
-      });
-    }
   }
 
-  void _skipRound() {
-    setState(() {
-      remainingWords.removeAt(currentWordIndex);
-    });
-
-    if (remainingWords.isEmpty) {
-      timer?.cancel();
-      _showRoundEndDialog(reason: 'No more words left! The round has ended.');
-    } else {
-      setState(() {
-        currentWordIndex = 0;
-      });
-    }
+  void _skipWord() {
+    setState(() => controller.nextWord());
   }
 
   void _nextTurnOrRound() {
     if (roundTurn == 0) {
-      // Сохраняем промежуточные очки после хода Team A
-      int lastSumA = roundScoresA.fold(0, (a, b) => a + b);
-      roundScoresA.add(teamAScore - lastSumA);
+      roundScoresA.add(teamAScore - roundScoresA.fold(0, (a, b) => a + b));
       roundTurn = 1;
     } else {
-      // Сохраняем промежуточные очки после хода Team B
-      int lastSumB = roundScoresB.fold(0, (a, b) => a + b);
-      roundScoresB.add(teamBScore - lastSumB);
+      roundScoresB.add(teamBScore - roundScoresB.fold(0, (a, b) => a + b));
       roundTurn = 0;
       currentRound++;
     }
@@ -172,63 +105,146 @@ class _GamePageState extends State<HomeGamePage> {
       _saveGameHistory();
       _showGameOverDialog();
     } else {
-      setState(() {
-        currentWordIndex = 0;
-        remainingWords = List<Map<String, dynamic>>.from(allWords)..shuffle(Random());
-      });
-      startTimer();
+      controller.resetWords();
+      _showStartRoundDialog();
     }
   }
 
-  void _showRoundEndDialog({required String reason}) {
+  void _showStartRoundDialog() {
+    _showDialogWithTitleAndAction(
+      icon: Icons.play_circle_fill,
+      iconColor: Colors.blueAccent,
+      title: 'Round $currentRound',
+      content: 'Team ${roundTurn == 0 ? 'A' : 'B'}, get ready!',
+      buttonText: 'Start',
+      buttonColor: Colors.indigo,
+      onPressed: controller.startTimer,
+    );
+  }
+
+  void _showDialogWithTitleAndAction({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String content,
+    required String buttonText,
+    required Color buttonColor,
+    required VoidCallback onPressed,
+  }) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Icon(icon, color: iconColor),
+              const SizedBox(width: 10),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(content, style: const TextStyle(fontSize: 18)),
+          actions: [
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: buttonColor,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                onPressed();
+              },
+              child: Text(buttonText),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  void _showGameOverDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => ScoreModal(
+        teamAScore: teamAScore,
+        teamBScore: teamBScore,
+        onConfirmed: () {
+          Navigator.pop(context);
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const HomePage()),
+            (route) => false,
+          );
+        },
+      ),
+    );
+  }
+
+  void _showWinDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Round Over'),
-        content: Text(reason),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: const [
+            Icon(Icons.emoji_events, color: Colors.amber),
+            SizedBox(width: 10),
+            Text('Victory!', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          'You guessed all the words!',
+          style: TextStyle(fontSize: 18),
+        ),
         actions: [
           TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: Colors.green,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             onPressed: () {
               Navigator.pop(context);
-              _nextTurnOrRound();
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const HomePage()),
+                (route) => false,
+              );
             },
-            child: const Text('Continue'),
+            child: const Text('Back to Home'),
           ),
         ],
       ),
     );
   }
 
-  void _showGameOverDialog() {
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => ScoreModal(
-      teamAScore: teamAScore,
-      teamBScore: teamBScore,
-      onConfirmed: () {
-        Navigator.pop(context); // Закрываем диалог
-
-        // Переход на HomePage и удаление всей предыдущей истории
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const HomePage()),
-          (route) => false,
-        );
-      },
-    ),
-  );
-}
-
-
   Future<void> _saveGameHistory() async {
+    final now = DateTime.now();
+    final duration = controller.totalDurationSeconds;
     final gameResult = GameResult(
       teamAPlayers.map((p) => p.name).join(', '),
       teamBPlayers.map((p) => p.name).join(', '),
       teamAScore,
       teamBScore,
-      DateTime.now().toIso8601String(),
+      now.toIso8601String(),
+      winner: teamAScore > teamBScore
+          ? 'Team A'
+          : teamBScore > teamAScore
+              ? 'Team B'
+              : 'Draw',
+      roundsPlayed: widget.totalRounds,
+      team1Players: teamAPlayers.map((p) => p.name).toList(),
+      team2Players: teamBPlayers.map((p) => p.name).toList(),
+      duration: duration,
+      notes: null,
+      team1RoundScores: roundScoresA,
+      team2RoundScores: roundScoresB,
     );
 
     await LocalStorageService.instance.insertGame(gameResult);
@@ -236,64 +252,116 @@ class _GamePageState extends State<HomeGamePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Round $currentRound / ${widget.totalRounds}'),
+        title: Text('Round $currentRound / ${widget.totalRounds}', style: TextStyle(color: Colors.white)),
+        
+        centerTitle: true,
+        elevation: 3,
+        backgroundColor: isDark ? Colors.indigo[700] : Colors.indigo,
+        shadowColor: Colors.indigoAccent.withOpacity(0.5),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: Column(
           children: [
+            const SizedBox(height: 16),
             Text(
-              'Team ${roundTurn == 0 ? 'A' : 'B'}\'s turn',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              'Team ${roundTurn == 0 ? 'A' : 'B'}\'s Turn',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.indigoAccent : Colors.indigo.shade900,
+              ),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Time left: $secondsLeft seconds',
-              style: const TextStyle(fontSize: 18, color: Colors.red),
-            ),
-            const SizedBox(height: 16),
-
-            WordCardWidget(
-              word: currentWord,
-              tabooWords: tabooWords,
-              onCorrect: () => _handleRoundEnd(scoreChange: 1, taboo: false),
-              onTaboo: () => _handleRoundEnd(scoreChange: -1, taboo: true),
-              onSkip: _skipRound,
-            ),
-
-            const Spacer(),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Column(
-                  children: [
-                    const Text('Team A Score', style: TextStyle(fontSize: 16)),
-                    Text(teamAScore.toString(), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  ],
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Time left: ${controller.secondsLeft} s',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.redAccent,
+                  letterSpacing: 1.1,
                 ),
-                Column(
-                  children: [
-                    const Text('Team B Score', style: TextStyle(fontSize: 16)),
-                    Text(teamBScore.toString(), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ],
+              ),
             ),
             const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: () {
-                timer?.cancel();
-                _showRoundEndDialog(reason: 'Round manually ended.');
-              },
-              child: const Text('End Round'),
+            Expanded(
+              child: WordCardWidget(
+                word: controller.currentWord,
+                tabooWords: controller.tabooWords,
+                onCorrect: () => _handleRoundEnd(taboo: false),
+                onTaboo: () => _handleRoundEnd(taboo: true),
+                onSkip: _skipWord,
+              ),
             ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.indigo.shade900 : Colors.indigo.shade50,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark ? Colors.indigoAccent.withOpacity(0.3) : Colors.indigo.shade200,
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildScoreColumn('Team A Score', teamAScore, Colors.green.shade400),
+                  _buildScoreColumn('Team B Score', teamBScore, Colors.blue.shade400),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildScoreColumn(String label, int score, Color color) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: color.withOpacity(0.85),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '$score',
+          style: TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.bold,
+            color: color,
+            shadows: [
+              Shadow(
+                color: color.withOpacity(0.4),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
