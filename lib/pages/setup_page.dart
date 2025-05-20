@@ -118,7 +118,7 @@ class _SetupPageState extends State<SetupPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Game Setup'),
+        title: const Text('Game Setup',style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.deepPurple,
         centerTitle: true,
       ),
@@ -127,7 +127,7 @@ class _SetupPageState extends State<SetupPage> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Colors.blueAccent, Colors.purpleAccent],
+            colors: [Color(0xFF3A0CA3), Color(0xFF4361EE), Color(0xFF4CC9F0)],
           ),
         ),
         padding: const EdgeInsets.all(16),
